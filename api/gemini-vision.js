@@ -16,15 +16,13 @@ if (!fs.existsSync(convoFile)) {
   fs.writeFileSync(convoFile, JSON.stringify({}), 'utf-8');
 }
 
-// Load config to get API key
-let config = {};
-try {
-  const configPath = path.join(__dirname, '../config.json');
-  if (fs.existsSync(configPath)) {
-    config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+// Store config from server
+let serverConfig = { geminiApiKey: null, model: 'gemini-2.5-flash' };
+
+function setConfig(config) {
+  if (config) {
+    serverConfig = config;
   }
-} catch (error) {
-  console.error('Error loading config:', error);
 }
 
 function loadConversation(uid) {
@@ -66,11 +64,14 @@ async function onStart({ req, res }) {
     });
   }
 
-  // Get API key from config (hidden from client)
-  const apiKey = config.geminiApiKey || process.env.GEMINI_API_KEY;
+  // Get API key from request or server config
+  const apiKey = req.geminiApiKey || serverConfig.geminiApiKey;
+  const model = req.geminiModel || serverConfig.model || 'gemini-2.5-flash';
+
   if (!apiKey) {
     return res.status(500).json({
-      error: 'API key not configured. Please set GEMINI_API_KEY in config.json or environment variables.'
+      error: 'API key not configured. Please check your Pastebin config.',
+      fix: 'Make sure your Pastebin RAW URL is correct and contains the API key'
     });
   }
 
@@ -119,8 +120,6 @@ async function onStart({ req, res }) {
       }))
     };
 
-    const model = config.model || 'gemini-2.5-flash';
-
     // Send request to Gemini API using hidden API key
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -147,12 +146,22 @@ async function onStart({ req, res }) {
 
   } catch (error) {
     console.error('Gemini Vision Error:', error.message);
+    
+    let errorMessage = 'Failed to get response from Gemini Vision API';
+    if (error.response?.status === 403) {
+      errorMessage = 'Invalid API key or API key does not have access to Gemini Vision. Please check your API key.';
+    } else if (error.response?.status === 429) {
+      errorMessage = 'Rate limit exceeded. Please try again later.';
+    } else if (error.response?.status === 404) {
+      errorMessage = 'Model not found. Please check the model name.';
+    }
+
     res.status(500).json({
       status: false,
-      error: 'Failed to get response from Gemini Vision API',
+      error: errorMessage,
       details: error.message
     });
   }
 }
 
-module.exports = { meta, onStart };
+module.exports = { meta, onStart, setConfig };
