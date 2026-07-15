@@ -14,7 +14,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ===== PASTEBIN CONFIG URL =====
 // Replace with your actual Pastebin RAW URL
-const PASTEBIN_CONFIG_URL = 'https://pastebin.com/raw/tLF83Z7b';
+const PASTEBIN_CONFIG_URL = 'https://pastebin.com/raw/V5xWLwFL';
 
 // ===== CONFIG CACHE =====
 let cachedConfig = null;
@@ -48,7 +48,7 @@ async function fetchConfigFromPastebin() {
         
         cachedConfig = {
             geminiApiKey: parsedConfig.geminiApiKey || parsedConfig.apiKey || null,
-            model: parsedConfig.model || 'gemini-2.5-flash'
+            model: parsedConfig.model || 'gemini-3.5-flash'
         };
         
         configLoaded = true;
@@ -78,7 +78,7 @@ async function loadConfig() {
                 const config = JSON.parse(configData);
                 cachedConfig = {
                     geminiApiKey: config.geminiApiKey || config.apiKey || null,
-                    model: config.model || 'gemini-2.5-flash'
+                    model: config.model || 'gemini-3.5-flash'
                 };
                 configLoaded = true;
                 console.log('✅ Loaded API key from local config.json (fallback)');
@@ -95,7 +95,7 @@ async function loadConfig() {
         if (envKey) {
             cachedConfig = {
                 geminiApiKey: envKey,
-                model: process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+                model: process.env.GEMINI_MODEL || 'gemini-3.5-flash'
             };
             configLoaded = true;
             console.log('✅ Loaded API key from environment variable');
@@ -131,9 +131,9 @@ async function loadConfig() {
 // ===== GET CONFIG FUNCTION =====
 function getConfig() {
     if (!configLoaded) {
-        return { geminiApiKey: null, model: 'gemini-2.5-flash' };
+        return { geminiApiKey: null, model: 'gemini-3.5-flash' };
     }
-    return cachedConfig || { geminiApiKey: null, model: 'gemini-2.5-flash' };
+    return cachedConfig || { geminiApiKey: null, model: 'gemini-3.5-flash' };
 }
 
 // ===== INITIALIZE =====
