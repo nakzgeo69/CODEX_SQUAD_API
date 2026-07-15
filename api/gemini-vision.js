@@ -59,6 +59,7 @@ async function onStart({ req, res }) {
 
   if (!prompt || !uid) {
     return res.status(400).json({
+      status: false,
       error: 'Both "prompt" and "uid" parameters are required',
       example: '/api/gemini-vision?prompt=hello&uid=123'
     });
@@ -66,10 +67,39 @@ async function onStart({ req, res }) {
 
   // Get API key from request or server config
   const apiKey = req.geminiApiKey || serverConfig.geminiApiKey;
-  const model = req.geminiModel || serverConfig.model || 'gemini-2.5-flash';
+  
+  // 🔥 FIXED: Use only valid Gemini model names
+  let model = req.geminiModel || serverConfig.model || 'gemini-2.5-flash';
+  
+  // 🔥 FIXED: Map deprecated model names to valid ones
+  const modelMap = {
+    'gemini-vision': 'gemini-2.5-flash',
+    'gemini-pro-vision': 'gemini-2.5-flash',
+    'gemini-2.5-pro': 'gemini-2.5-flash',
+    'gemini-2.5-flash-lite': 'gemini-2.5-flash'
+  };
+  
+  if (modelMap[model]) {
+    console.log(`⚠️ Model "${model}" is deprecated. Using "${modelMap[model]}" instead.`);
+    model = modelMap[model];
+  }
+
+  // 🔥 FIXED: List of valid models
+  const validModels = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro'
+  ];
+  
+  if (!validModels.includes(model)) {
+    console.log(`⚠️ Invalid model "${model}". Using default "gemini-2.5-flash".`);
+    model = 'gemini-2.5-flash';
+  }
 
   if (!apiKey) {
     return res.status(500).json({
+      status: false,
       error: 'API key not configured. Please check your Pastebin config.',
       fix: 'Make sure your Pastebin RAW URL is correct and contains the API key'
     });
@@ -94,8 +124,19 @@ async function onStart({ req, res }) {
     if (img) {
       imageData = img;
     } else if (imgUrl) {
-      const imageResp = await axios.get(imgUrl, { responseType: 'arraybuffer' });
-      imageData = Buffer.from(imageResp.data, 'binary').toString('base64');
+      try {
+        const imageResp = await axios.get(imgUrl, { 
+          responseType: 'arraybuffer',
+          timeout: 10000
+        });
+        imageData = Buffer.from(imageResp.data, 'binary').toString('base64');
+      } catch (imgError) {
+        return res.status(400).json({
+          status: false,
+          error: 'Failed to fetch image from URL',
+          details: imgError.message
+        });
+      }
     }
 
     // Build user message
@@ -115,24 +156,34 @@ async function onStart({ req, res }) {
     // Construct payload for Gemini API
     const payload = {
       contents: conversation.map(msg => ({
-        role: msg.role,
+        role: msg.role === 'model' ? 'model' : 'user',
         parts: msg.parts
       }))
     };
 
-    // Send request to Gemini API using hidden API key
+    // 🔥 FIXED: Use the correct API endpoint with proper model
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    
+    console.log(`📡 Using model: ${model}`);
+    console.log(`📡 API URL: ${apiUrl}`);
+
+    // Send request to Gemini API
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      apiUrl,
       payload,
       {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 30000
       }
     );
 
-    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't generate a response.";
+    // Extract response text
+    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 
+                 response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 
+                 "Sorry, I couldn't generate a response.";
 
     // Save AI response into memory
     conversation.push({ role: 'model', parts: [{ text }] });
@@ -141,25 +192,39 @@ async function onStart({ req, res }) {
     res.json({
       status: true,
       response: text,
-      conversationId: uid
+      conversationId: uid,
+      modelUsed: model
     });
 
   } catch (error) {
     console.error('Gemini Vision Error:', error.message);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+    }
     
     let errorMessage = 'Failed to get response from Gemini Vision API';
+    let statusCode = 500;
+    
     if (error.response?.status === 403) {
       errorMessage = 'Invalid API key or API key does not have access to Gemini Vision. Please check your API key.';
+      statusCode = 403;
     } else if (error.response?.status === 429) {
       errorMessage = 'Rate limit exceeded. Please try again later.';
+      statusCode = 429;
     } else if (error.response?.status === 404) {
-      errorMessage = 'Model not found. Please check the model name.';
+      errorMessage = `Model "${model}" not found. Please use a valid model name.`;
+      statusCode = 404;
+    } else if (error.code === 'ECONNABORTED') {
+      errorMessage = 'Request timeout. Please try again.';
+      statusCode = 408;
     }
 
-    res.status(500).json({
+    res.status(statusCode).json({
       status: false,
       error: errorMessage,
-      details: error.message
+      model: model,
+      details: error.response?.data?.error?.message || error.message
     });
   }
 }
