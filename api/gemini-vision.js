@@ -17,7 +17,7 @@ if (!fs.existsSync(convoFile)) {
 }
 
 // Store config from server
-let serverConfig = { geminiApiKey: null, model: 'gemini-3.5-flash' };
+let serverConfig = { geminiApiKey: null, model: 'gemini-2.5-flash-lite' };
 
 function setConfig(config) {
   if (config) {
@@ -68,33 +68,36 @@ async function onStart({ req, res }) {
   // Get API key from request or server config
   const apiKey = req.geminiApiKey || serverConfig.geminiApiKey;
   
-  // 🔥 FIXED: Use only valid Gemini model names
-  let model = req.geminiModel || serverConfig.model || 'gemini-3.5-flash';
+  // 🔥 FIXED: Default model is gemini-2.5-flash-lite
+  let model = req.geminiModel || serverConfig.model || 'gemini-2.5-flash-lite';
   
-  // 🔥 FIXED: Map deprecated model names to valid ones
+  // 🔥 FIXED: Map deprecated/incorrect model names to valid ones
   const modelMap = {
-    'gemini-vision': 'gemini-3.5-flash',
-    'gemini-pro-vision': 'gemini-3.5-flash',
-    'gemini-2.5-pro': 'gemini-3.5-flash',
-    'gemini-2.5-flash-lite': 'gemini-3.5-flash'
+    'gemini-vision': 'gemini-2.5-flash-lite',
+    'gemini-pro-vision': 'gemini-2.5-flash-lite',
+    'gemini-2.5-pro': 'gemini-2.5-flash-lite',
+    'gemini-2.5-flash': 'gemini-2.5-flash-lite',
+    'gemini-3.5-flash': 'gemini-2.5-flash-lite',
+    'gemini-2.0-flash': 'gemini-2.5-flash-lite',
+    'gemini-1.5-flash': 'gemini-2.5-flash-lite',
+    'gemini-1.5-pro': 'gemini-2.5-flash-lite'
   };
   
   if (modelMap[model]) {
-    console.log(`⚠️ Model "${model}" is deprecated. Using "${modelMap[model]}" instead.`);
+    console.log(`⚠️ Model "${model}" is deprecated/incorrect. Using "${modelMap[model]}" instead.`);
     model = modelMap[model];
   }
 
-  // 🔥 FIXED: List of valid models
+  // 🔥 FIXED: List of valid models (only available ones in 2026)
   const validModels = [
-    'gemini-3.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro'
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-2.5-pro'
   ];
   
   if (!validModels.includes(model)) {
-    console.log(`⚠️ Invalid model "${model}". Using default "gemini-3.5-flash".`);
-    model = 'gemini-3.5-flash';
+    console.log(`⚠️ Invalid model "${model}". Using default "gemini-2.5-flash-lite".`);
+    model = 'gemini-2.5-flash-lite';
   }
 
   if (!apiKey) {
@@ -182,7 +185,6 @@ async function onStart({ req, res }) {
 
     // Extract response text
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 
-                 response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 
                  "Sorry, I couldn't generate a response.";
 
     // Save AI response into memory
