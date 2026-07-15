@@ -17,7 +17,7 @@ if (!fs.existsSync(convoFile)) {
 }
 
 // Store config from server
-let serverConfig = { geminiApiKey: null, model: 'gemini-2.5-flash' };
+let serverConfig = { geminiApiKey: null, model: 'gemini-3.5-flash' };
 
 function setConfig(config) {
   if (config) {
@@ -69,14 +69,14 @@ async function onStart({ req, res }) {
   const apiKey = req.geminiApiKey || serverConfig.geminiApiKey;
   
   // 🔥 FIXED: Use only valid Gemini model names
-  let model = req.geminiModel || serverConfig.model || 'gemini-2.5-flash';
+  let model = req.geminiModel || serverConfig.model || 'gemini-3.5-flash';
   
   // 🔥 FIXED: Map deprecated model names to valid ones
   const modelMap = {
-    'gemini-vision': 'gemini-2.5-flash',
-    'gemini-pro-vision': 'gemini-2.5-flash',
-    'gemini-2.5-pro': 'gemini-2.5-flash',
-    'gemini-2.5-flash-lite': 'gemini-2.5-flash'
+    'gemini-vision': 'gemini-3.5-flash',
+    'gemini-pro-vision': 'gemini-3.5-flash',
+    'gemini-2.5-pro': 'gemini-3.5-flash',
+    'gemini-2.5-flash-lite': 'gemini-3.5-flash'
   };
   
   if (modelMap[model]) {
@@ -86,15 +86,15 @@ async function onStart({ req, res }) {
 
   // 🔥 FIXED: List of valid models
   const validModels = [
-    'gemini-2.5-flash',
+    'gemini-3.5-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
     'gemini-1.5-pro'
   ];
   
   if (!validModels.includes(model)) {
-    console.log(`⚠️ Invalid model "${model}". Using default "gemini-2.5-flash".`);
-    model = 'gemini-2.5-flash';
+    console.log(`⚠️ Invalid model "${model}". Using default "gemini-3.5-flash".`);
+    model = 'gemini-3.5-flash';
   }
 
   if (!apiKey) {
