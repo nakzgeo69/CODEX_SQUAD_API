@@ -14,7 +14,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ===== PASTEBIN CONFIG URL =====
 // Replace with your actual Pastebin RAW URL
-const PASTEBIN_CONFIG_URL = 'https://pastebin.com/raw/iQC2G0Hb';
+const PASTEBIN_CONFIG_URL = 'https://pastebin.com/raw/tLF83Z7b';
 
 // ===== CONFIG CACHE =====
 let cachedConfig = null;
